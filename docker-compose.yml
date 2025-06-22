@@ -1,0 +1,13 @@
+services:
+    dimitris-container:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: dimitris-container
+        volumes:
+            # Mounts the local directory into the docker container's filesystem
+            - "./src/:/ros2_ws/src"
+        # Opens interactive terminal
+        stdin_open: true
+        # Keeps the container running after launch
+        tty: true
