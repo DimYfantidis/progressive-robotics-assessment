@@ -1,0 +1,9 @@
+# Custom service for the solution of a linear system using linear least squares.
+
+geometry_msgs/Vector3[] matrix
+float64[] vector
+---
+bool success
+geometry_msgs/Vector3 solution
+geometry_msgs/Vector3 displacement_vector
+geometry_msgs/Vector3[3] rotation_matrix
