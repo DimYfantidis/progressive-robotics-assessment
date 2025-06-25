@@ -12,22 +12,34 @@ find_package(sensor_msgs REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_eigen REQUIRED)
+find_package(rviz_visual_tools REQUIRED)
+find_package(ur_description REQUIRED)
 
 # Secondary dependencies
 find_package(Eigen3 REQUIRED)
 
 
 # Register the LinearAlgebraServer node
-add_executable(joint_state_publisher src/joint_configuration_publisher.cpp)
-ament_target_dependencies(joint_state_publisher rclcpp sensor_msgs rcl_interfaces tf2 tf2_ros)
+add_executable(ur20_joint_configuration_publisher src/joint_configuration_publisher.cpp)
+ament_target_dependencies(ur20_joint_configuration_publisher rclcpp sensor_msgs rcl_interfaces tf2 tf2_ros tf2_eigen rviz_visual_tools ur_description)
 # Eigen is not an ament package and should be linked separately
 # docs: https://eigen.tuxfamily.org/dox/TopicCMakeGuide.html
-target_link_libraries(joint_state_publisher Eigen3::Eigen)
+target_link_libraries(ur20_joint_configuration_publisher Eigen3::Eigen)
 
 install(TARGETS
-  joint_state_publisher
+  ur20_joint_configuration_publisher
   DESTINATION lib/${PROJECT_NAME}
 )
+
+# Install launch files.
+install(DIRECTORY
+  launch
+  config
+  rviz
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

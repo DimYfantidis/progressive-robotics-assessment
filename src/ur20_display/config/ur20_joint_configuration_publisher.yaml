@@ -1,0 +1,20 @@
+ur20_joint_configuration_publisher:
+  ros__parameters:
+    joint_names: [
+      'shoulder_pan_joint',
+      'shoulder_lift_joint',
+      'elbow_joint',
+      'wrist_1_joint',
+      'wrist_2_joint',
+      'wrist_3_joint',
+      'gripper_joint'
+    ]
+    joint_positions: [
+      0.0, -1.57, 1.57, -1.57, 0.0, 0.0, 0.0
+    ]
+    joint_velocities: [
+      .0, .0, .0, .0, .0, .0, .0
+    ]
+    joint_efforts: [
+      .0, .0, .0, .0, .0, .0, .0
+    ]
