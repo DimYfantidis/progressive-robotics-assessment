@@ -48,5 +48,20 @@ RUN export LANG=en_US.UTF-8 && \
     # Create the ROS2 workspace path
     mkdir -p /ros2_ws/src
 
+# Necessary for accessing graphical elements within containers.
+# 
+# The ROS2 underlay sourcing is probably redundant, but nonetheless, 
+# the file was structured exactly as found in the `osrf/ros:humble-desktop-full`
+# image for safety.
+RUN touch ros_entrypoint.sh && \
+    echo '#!/bin/bash' >> ros_entrypoint.sh && \ 
+    echo 'set -e' >> ros_entrypoint.sh && \ 
+    echo '' >> ros_entrypoint.sh && \ 
+    echo '# setup ros2 environment' >> ros_entrypoint.sh && \ 
+    echo 'source /opt/ros/humble/setup.bash' >> ros_entrypoint.sh && \
+    echo 'exec $@' >> ros_entrypoint.sh && \
+    chmod +x ros_entrypoint.sh && \
+    echo 'source ros_entrypoint.sh' >> /root/.bashrc
+
 # Install Eigen, YAML-cpp and RVIZ visual tools dependencies
 RUN export LANG=en_US.UTF-8 && apt-get install libeigen3-dev libyaml-cpp* ros-humble-rviz-visual-tools -y

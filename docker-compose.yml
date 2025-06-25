@@ -1,9 +1,35 @@
+networks:
+  ros:
+    external: true
+
+
 services:
+
+    # noVNC container, necessary for accessing GUI resources within the environment
+    # Access link: http://localhost:8080/vnc.html
+    novnc:
+        image: theasp/novnc:latest
+        container_name: novnc
+        ports:
+            - "8080:8080"
+        environment:
+            DISPLAY_WIDTH: 1920
+            DISPLAY_HEIGHT: 1080
+            RUN_XTERM: "no"
+        networks:
+            - ros
+
+    # Technical assessment container
     dimitris-container:
         build:
             context: .
             dockerfile: Dockerfile
         container_name: dimitris-container
+        networks:
+            - ros
+        environment:
+            DISPLAY: novnc:0.0
+            ROS_MASTER_URI: http://roscore:11311
         volumes:
             # Mounts the local directory into the docker container's filesystem
             - "./src/:/ros2_ws/src"

@@ -61,8 +61,8 @@ public:
 
         // Initialise thread resources
         worker_resources_.is_thread_running = ATOMIC_VAR_INIT(true);
-        worker_resources_.has_received_message = false;
-        worker_resources_.logged_output = true;
+        worker_resources_.has_received_message = ATOMIC_VAR_INIT(false);
+        worker_resources_.logged_output = ATOMIC_VAR_INIT(true);
 
         // Instantiate thread
         worker_resources_.thread_ptr = std::make_unique<std::thread>(

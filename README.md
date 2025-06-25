@@ -14,18 +14,18 @@
 
 3. Open a terminal and navigate to the project's root directory.
 
-4. Build the docker image using:
+4. Build the docker image and start the [noVNC](https://wiki.ros.org/docker/Tutorials/GUI) image using:
     ```
-    docker compose up
+    docker compose up -d dimitris-container novnc
     ```
-    When finished, the image is built and the container will start running in the background while blocking the terminal.
+    When finished, the image is built and the container will start running in the background while blocking the terminal. `noVNC` is necessary for accessing graphical elements while working within containers.
 
 
 ## Execution Instructions
 
 1. If the container is not already running: By typing the following command in a shell within the root directory, the container should start by using the already built image:
     ```
-    docker compose start
+    docker compose up --no-build -d dimitris-container novnc
     ```
     Make sure that the docker daemon is running in the background.
 
@@ -35,7 +35,7 @@
     ```
     This can be repeated in as many terminals as needed, allowing multiple ROS 2 components to operate concurrently.
 
-3. Top stop the container's execution, log out from every terminal within docker by typing `exit` and then `docker stop dimitris-container` in the host machine.
+3. Top stop the containers' execution, type `exit` in each terminal accessed within the aforementioned command (guest terminals) and then type `docker compose down` in the root directory of the project (host machine).
 
 ## Build the ROS2 Workspace 
 
