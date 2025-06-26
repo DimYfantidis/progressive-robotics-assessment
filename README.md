@@ -3,12 +3,13 @@
 * Development for this project took place in a Ubuntu 22.04 Linux machine. 
 * Docker is required for this project. By simply installing [Docker Desktop](https://www.docker.com/products/docker-desktop/), all of the necessary docker components should be installed.
 
-<hr>
-<br>
 
+<a id="demonstration-anchor"></a>
 <p align="center">
   <img src="assets/ur20_demonstration.gif" alt="UR20 movement demonstration"  height="334" style="display:inline-block; margin-right:5%;">
   <img src="assets/joint_states.png" alt="Joint states positions plotted over time" height="334" style="display:inline-block;">
+  <br>
+  <i> UR20 movement demonstration along with its joints' positions during its motion. </i>
 </p>
 
 ## Contents
@@ -18,13 +19,13 @@
 * [Build the ROS2 Workspace](#build-the-ros2-workspace)
 * [Run the implemented ROS2 nodes](#run-the-implemented-ros2-nodes)
 * [UR20 Robotic Arm Visualization](#ur20-robotic-arm-visualization)
-
+* [UR20 Real-Time Motion](#ur20-real-time-motion)
 
 ## Build Instructions
 
 1. Clone the project locally:
     ```
-    git clone https://github.com/DimYfantidis/progressive-robotics-assessment
+    git clone https://github.com/DimYfantidis/progressive-robotics-assessment && cd progressive-robotics-assessment
     ```
 
 2. Pull the dependencies:
@@ -80,7 +81,7 @@
     The second command ensures that the Python ROS2 nodes found under the `ur20_display` packages can be executed.
 
 
-## Run the implemented ROS2 nodes
+## Run the Implemented ROS2 Nodes
 
 * You will first need to source the workspace by typing:
     ```
@@ -151,3 +152,21 @@ ur20_joint_configuration_publisher:
     ]
 ```
 The `joint_positions` can be changed before relaunching [inspect_ur20.launch.py](./src/ur20_display/launch/inspect_ur20.launch.py) to visualize different joint configurations.
+
+
+## UR20 Real-Time Motion
+
+This section describes the steps needed to obtain simulation data, as seen in the [above demonstration](#demonstration-anchor).
+
+To instruct the UR20 robot arm to perform a random live movement, simply open another terminal, start a new BASH session within the container 
+and publish an empty message on the `/animate_cmd` topic to trigger the robot:
+```
+ros2 topic pub --once /animate_cmd std_msgs/msg/Empty '{}'
+```
+
+Additionally, by starting a `joint_configuration_plotter` node in a separate terminal, the robot's movement can be recorded and visualized:
+```
+ros2 run ur20_display joint_configuration_plotter.py
+```
+After this node opens, it will wait for a new message to be published on the `/animate_cmd` topic and will display the UR20's joint positions 
+over time during its motion.

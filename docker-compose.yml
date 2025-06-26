@@ -1,6 +1,5 @@
 networks:
   ros:
-    external: true
 
 
 services:

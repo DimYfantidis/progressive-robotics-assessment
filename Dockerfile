@@ -7,7 +7,8 @@ SHELL ["/bin/bash", "-c"]
 RUN apt-get update && apt-get upgrade -y && \
     # The `install ros-humble-desktop` command below requests a timezone in an interactive way, 
     # which halts the creation of the docker image. By installing `tzdata` before that, this is averted.
-    apt-get install -y tzdata
+    apt-get install -y python3 python3-pip tzdata && \
+    pip3 install matplotlib
 
 # Optionally set time zone
 ENV TZ="Europe/Athens"
