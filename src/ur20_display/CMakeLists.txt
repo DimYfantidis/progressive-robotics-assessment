@@ -7,6 +7,7 @@ endif()
 
 # ROS2 dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rcl_interfaces REQUIRED)
@@ -15,6 +16,7 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(rviz_visual_tools REQUIRED)
 find_package(ur_description REQUIRED)
+find_package(std_msgs REQUIRED)
 
 # Secondary dependencies
 find_package(Eigen3 REQUIRED)
@@ -22,7 +24,7 @@ find_package(Eigen3 REQUIRED)
 
 # Register the LinearAlgebraServer node
 add_executable(ur20_joint_configuration_publisher src/joint_configuration_publisher.cpp)
-ament_target_dependencies(ur20_joint_configuration_publisher rclcpp sensor_msgs rcl_interfaces tf2 tf2_ros tf2_eigen rviz_visual_tools ur_description)
+ament_target_dependencies(ur20_joint_configuration_publisher rclcpp sensor_msgs rcl_interfaces tf2 tf2_ros tf2_eigen rviz_visual_tools ur_description std_msgs)
 # Eigen is not an ament package and should be linked separately
 # docs: https://eigen.tuxfamily.org/dox/TopicCMakeGuide.html
 target_link_libraries(ur20_joint_configuration_publisher Eigen3::Eigen)
@@ -40,6 +42,12 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}/
 )
 
+# Install python modules
+ament_python_install_package(${PROJECT_NAME})
+install(PROGRAMS
+  scripts/joint_configuration_plotter.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

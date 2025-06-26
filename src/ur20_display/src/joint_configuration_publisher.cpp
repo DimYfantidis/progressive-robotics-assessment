@@ -1,5 +1,7 @@
+#include <random>
 #include <memory>
 #include <chrono>
+#include <thread>
 #include <algorithm>
 #include <functional>
 
@@ -9,6 +11,8 @@
 
 #include "sensor_msgs/msg/joint_state.hpp"
 
+#include "std_msgs/msg/empty.hpp"
+
 #include "tf2/exceptions.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/buffer.h"
@@ -16,10 +20,15 @@
 #include "Eigen/Dense"
 #include "Eigen/Geometry"
 
-#include <rviz_visual_tools/rviz_visual_tools.hpp>
+#include "rviz_visual_tools/rviz_visual_tools.hpp"
+
+#ifndef M_PI
+#   define M_PI 3.141592653589793
+#endif
 
 
 using namespace std::chrono_literals;
+using std::placeholders::_1;
 
 
 class JointConfigurationPublisher : public rclcpp::Node
@@ -27,7 +36,12 @@ class JointConfigurationPublisher : public rclcpp::Node
 public:
 
     JointConfigurationPublisher()
-    :   Node("ur20_joint_configuration_publisher")
+        :   
+        Node("ur20_joint_configuration_publisher"),
+
+        generator_{std::random_device{}()},
+
+        angle_distribution_(-M_PI, M_PI)
     {
         // Joints configuration, specified through the parameter server.
         this->declare_parameter<std::string>("tf_prefix", "");
@@ -44,21 +58,61 @@ public:
         parameters_.joint_efforts = this->get_parameter("joint_efforts").as_double_array();
         parameters_.frequency = this->get_parameter("frequency").as_double();   // Hz
 
+        if (
+            // Input check
+            parameters_.joint_names.size() != parameters_.joint_positions.size() || 
+            parameters_.joint_positions.size() != parameters_.joint_velocities.size() || 
+            parameters_.joint_velocities.size() != parameters_.joint_efforts.size()
+        )
+        {
+            throw std::runtime_error(
+                "INPUT ERROR: Invalid joint configuration. "
+                "`joint_names`, `joint_positions`, `joint_velocities` and `joint_efforts` "
+                "parameters must be sequences of equal lengths."
+            );
+        }
+
+        size_t num_joints = parameters_.joint_positions.size();
+
+        initial_joint_positions_.resize(num_joints);
+        goal_joint_positions_.resize(num_joints);
+
+        for (size_t i = 0; i < num_joints; ++i)
+        {
+            // Initial joint positions.
+            initial_joint_positions_[i] = parameters_.joint_positions[i];
+            // Randomly generated final joint positions.
+            goal_joint_positions_[i] = angle_distribution_(generator_);
+        }
+        current_joint_positions_ = initial_joint_positions_;
+
+
         // docs: https://docs.ros.org/en/humble/Tutorials/Intermediate/Tf2/Writing-A-Tf2-Listener-Cpp.html#id2
         tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
         tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
-
-        // Joint state publisher
-        publisher_ = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
 
         tf2_timer_ = this->create_wall_timer(
             std::chrono::nanoseconds(static_cast<uint64_t>(1E9 / parameters_.frequency)),
             std::bind(&JointConfigurationPublisher::tf_listener_callback_, this)
         );
+
+        rclcpp::SubscriptionOptions options;
+        options.callback_group = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+
+        // Joint state publisher
+        publisher_ = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
+
         publisher_timer_ = this->create_wall_timer(
             std::chrono::nanoseconds(static_cast<uint64_t>(1E9 / parameters_.frequency)),
             std::bind(&JointConfigurationPublisher::publisher_callback_, this)
         );
+        animate_command_listener_ = this->create_subscription<std_msgs::msg::Empty>(
+            "/" + parameters_.tf_prefix + "animate_cmd", 
+            rclcpp::QoS(rclcpp::KeepLast(10)),
+            std::bind(&JointConfigurationPublisher::animate_command_callback_, this, _1),
+            options
+        );
+
         // RVIZ visual tools docs: https://github.com/PickNikRobotics/rviz_visual_tools/blob/ros2/README.md
         visual_tools_.reset(new rviz_visual_tools::RvizVisualTools("world","/rviz_visual_markers", this));
     }
@@ -82,11 +136,9 @@ private:
         Eigen::Isometry3d iso3d_world_elbow;
         Eigen::Isometry3d iso3d_world_gripper;
 
-        // Lamda function for the convenient conversion from the first type to the second one.
+        // Lamda function for the convenient conversion from Transform format to Isometry3D format.
         // see: https://eigen.tuxfamily.org/dox/classEigen_1_1Transform.html
-        auto get_isometry = [](
-            geometry_msgs::msg::TransformStamped& t
-        )
+        auto get_isometry = [](geometry_msgs::msg::TransformStamped& t)
         {
             Eigen::Isometry3d isometry = Eigen::Isometry3d::Identity();
 
@@ -129,7 +181,7 @@ private:
                     parameters_.tf_prefix + source, 
                     tf2::TimePointZero
                 );
-                
+
                 iso3d = get_isometry(t);
 
                 RCLCPP_INFO(
@@ -169,7 +221,7 @@ private:
 
         if (combined.isApprox(iso3d_world_gripper, 0.0001))
         {
-            // This means that the three transforms are correct!
+            // This means that the three transhould_animate_sforms are correct!
             RCLCPP_INFO(this->get_logger(), "Transforms validated successfully.");
         }
         else
@@ -193,11 +245,57 @@ private:
 
         msg.header.stamp = this->now();
         msg.name = parameters_.joint_names;
-        msg.position = parameters_.joint_positions;
         msg.velocity = parameters_.joint_velocities;
         msg.effort = parameters_.joint_efforts;
+        msg.position = std::vector<double>(
+            current_joint_positions_.data(),
+            current_joint_positions_.data() + current_joint_positions_.size()
+        );
 
         publisher_->publish(msg);
+    }
+
+    /// @brief  Callback function that listens for "animate" commands.
+    ///         An "animate" command instructs the robot to start animating
+    ///         by changing its joint positions (or rather angles) over a time 
+    ///         frame of 4.5 seconds
+    /// @param msg
+    ///     Serves as a placeholder. Essentially, by sending a dummy message to 
+    ///     the `/animate_cmd` topic, the user will instruct the robot to animate.
+    ///     Simply type `ros2 topic pub --once /animate_cmd std_msgs/msg/Empty '{}'`
+    ///     into a separate terminal.
+    void animate_command_callback_(const std_msgs::msg::Empty& msg)
+    {
+        // Suppress "unused variable" compiler warnings.
+        std::ignore = msg;
+
+        double t0 = this->now().seconds() + this->now().nanoseconds() * 1E-9;
+        double t = t0;
+
+        constexpr double PERIOD = 3.0;
+        constexpr double TOTAL_TIME = 1.5 * PERIOD;
+        constexpr double TIME_STEP = 0.034;
+
+        while (t - t0 < TOTAL_TIME)
+        {
+            // These references are simply for shortening the variable names so
+            // that the interpolation's formula doesn't give a headache to the reader.
+            Eigen::VectorXd& current = current_joint_positions_;
+            Eigen::VectorXd& init = initial_joint_positions_;
+            Eigen::VectorXd& goal = goal_joint_positions_;
+            
+            // Interpolation factor
+            double f = std::sin(2.0 * M_PI * t / PERIOD);
+
+            // The main idea behind the formula comes from the parameterization of a straight line segment.
+            // see: https://www.geeksforgeeks.org/maths/parametrization-of-a-line/
+            current = init + (goal - init) * f;
+
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(static_cast<uint64_t>(1000 * TIME_STEP))
+            );
+            t = this->now().seconds() + this->now().nanoseconds() * 1E-9;
+        }
     }
 
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr publisher_;
@@ -212,6 +310,18 @@ private:
 
     // For visualizing things in rviz
     rviz_visual_tools::RvizVisualToolsPtr visual_tools_;
+
+    Eigen::VectorXd initial_joint_positions_;
+
+    Eigen::VectorXd goal_joint_positions_;
+
+    Eigen::VectorXd current_joint_positions_;
+
+    std::mt19937 generator_;
+
+    std::uniform_real_distribution<double> angle_distribution_;
+
+    rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr animate_command_listener_;
 
 
     // All variables that refer to the ROS node's parameters are grouped 
@@ -237,7 +347,19 @@ private:
 int main(int argc, char* argv[])
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<JointConfigurationPublisher>());
+
+    // It is very important that we use a multithreaded executor in this case 
+    // as `JointConfigurationPublisher::animate_command_callback_` has sleep statements.
+    // 
+    // If the default executor is used (`rclcpp::executors::SingleThreadedExecutor`), then 
+    // the TF listener and the publisher will halt their execution until `animate_command_callback_` 
+    // has finished; an undesired outcome. 
+    rclcpp::executors::MultiThreadedExecutor executor;
+    std::shared_ptr<JointConfigurationPublisher> node = std::make_shared<JointConfigurationPublisher>();
+
+    executor.add_node(node);
+    executor.spin();
+    
     rclcpp::shutdown();
     return 0;
 }

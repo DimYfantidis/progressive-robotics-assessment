@@ -3,6 +3,22 @@
 * Development for this project took place in a Ubuntu 22.04 Linux machine. 
 * Docker is required for this project. By simply installing [Docker Desktop](https://www.docker.com/products/docker-desktop/), all of the necessary docker components should be installed.
 
+<hr>
+<br>
+
+<p align="center">
+  <img src="assets/ur20_demonstration.gif" alt="UR20 movement demonstration"  height="558" style="width:45%; display:inline-block; vertical-align:middle; margin-right:5%;">
+  <img src="assets/joint_states.png" alt="Joint states positions plotted over time" height="558" style="width:45%; display:inline-block; vertical-align:middle;">
+</p>
+
+## Contents
+
+* [Build Instructions](#build-instructions)
+* [Execution Instructions](#execution-instructions)
+* [Build the ROS2 Workspace](#build-the-ros2-workspace)
+* [Run the implemented ROS2 nodes](#run-the-implemented-ros2-nodes)
+* [UR20 Robotic Arm Visualization](#ur20-robotic-arm-visualization)
+
 
 ## Build Instructions
 
@@ -10,14 +26,17 @@
     ```
     git clone https://github.com/DimYfantidis/progressive-robotics-assessment
     ```
+
 2. Pull the dependencies:
     ```
     git submodule update --init --remote
     ```
+
 3. Switch to the submodule's `humble` branch:
     ```
     cd ./src/universal_robots && git checkout humble && git pull && cd ../..
     ```
+
 4. Replace the dependency's `ur_macro.xacro` file with with the one found under the `./resources/` directory. This description includes a gripper attached at the flange of the arm:
     ```
     cp ./resources/ur_macro.xacro ./src/universal_robots/urdf/
@@ -37,7 +56,7 @@
 
 1. If the container is not already running: By typing the following command in a shell within the root directory, the container should start by using the already built image:
     ```
-    docker compose up --no-build -d dimitris-container novnc
+    docker compose start
     ```
     Make sure that the docker daemon is running in the background.
 
@@ -47,14 +66,19 @@
     ```
     This can be repeated in as many terminals as needed, allowing multiple ROS 2 components to operate concurrently.
 
-3. Top stop the containers' execution, type `exit` in each terminal accessed within the aforementioned command (guest terminals) and then type `docker compose down` in the root directory of the project (host machine).
+3. Top stop the containers' execution, type `exit` in each terminal accessed within the aforementioned command (guest terminals) and then type `docker compose stop` in the root directory of the project (host machine).
+
 
 ## Build the ROS2 Workspace 
 
-Within the BASH shell inside the running container, navigate into the workspace and build it by typing:
-```
-cd ros2_ws && colcon build --symlink-install
-```
+1. Within the BASH shell inside the running container, navigate into the ROS2 workspace and build it by typing:
+    ```
+    cd ros2_ws && \
+    chmod +x src/ur20_display/scripts/*.py && \
+    colcon build --symlink-install
+    ```
+    The second command ensures that the Python ROS2 nodes found under the `ur20_display` packages can be executed.
+
 
 ## Run the implemented ROS2 nodes
 
@@ -101,7 +125,7 @@ In order to see RVIZ's GUI and interact with its elements, the following address
 
 The parameters that specify the command pose can be found within the [ur20_joint_configuration_publisher](./src/ur20_display/config/ur20_joint_configuration_publisher.yaml) YAML file found in the `./src/ur20_display/config/` directory.
 
-![Modified UR20 RVIZ screenshot](screenshots/modified_ur20_rviz.png)
+![Modified UR20 RVIZ screenshot](assets/modified_ur20_rviz.png)
 
 The above screenshot shows the robotic arm's joint configuration, its TF frames, along with their names, which is specified as:
 ```
