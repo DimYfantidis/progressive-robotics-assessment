@@ -7,8 +7,8 @@
 <br>
 
 <p align="center">
-  <img src="assets/ur20_demonstration.gif" alt="UR20 movement demonstration"  height="558" style="width:45%; display:inline-block; vertical-align:middle; margin-right:5%;">
-  <img src="assets/joint_states.png" alt="Joint states positions plotted over time" height="558" style="width:45%; display:inline-block; vertical-align:middle;">
+  <img src="assets/ur20_demonstration.gif" alt="UR20 movement demonstration"  height="334" style="display:inline-block; margin-right:5%;">
+  <img src="assets/joint_states.png" alt="Joint states positions plotted over time" height="334" style="display:inline-block;">
 </p>
 
 ## Contents
